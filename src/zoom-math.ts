@@ -54,12 +54,13 @@ export function clampPan(
   const scaledW = input.imageWidth * input.scale;
   const scaledH = input.imageHeight * input.scale;
   const padding = input.padding ?? 0;
-  const overflowX = scaledW > input.containerWidth
-    ? (scaledW - input.containerWidth) / 2 + padding
-    : 0;
-  const overflowY = scaledH > input.containerHeight
-    ? (scaledH - input.containerHeight) / 2 + padding
-    : 0;
+  // Ramp padding in smoothly so crossing the overflow threshold (image just
+  // barely exceeds container) doesn't suddenly widen the pan range by
+  // `padding` pixels and let the current ty/tx snap to a new clamp boundary.
+  const rawOverflowX = Math.max(0, (scaledW - input.containerWidth) / 2);
+  const rawOverflowY = Math.max(0, (scaledH - input.containerHeight) / 2);
+  const overflowX = rawOverflowX + Math.min(rawOverflowX, padding);
+  const overflowY = rawOverflowY + Math.min(rawOverflowY, padding);
   // Translation that re-centers the image in the container.
   const centerTx = input.containerWidth / 2 - input.imageCenterX;
   const centerTy = input.containerHeight / 2 - input.imageCenterY;
