@@ -76,13 +76,23 @@ export class ZoomController {
 
   private onWheel = (e: WheelEvent): void => {
     const settings = this.store.getSettings();
-    if (!this.modifierMatches(settings.modifierKey, e)) return;
-    e.preventDefault();
-    const anchor = this.toContainer(e.clientX, e.clientY);
-    const factor = Math.exp(-e.deltaY * 0.01 * settings.zoomSensitivity);
-    this.setState(
-      zoomAt(this.state, factor, anchor, settings.minZoom, settings.maxZoom)
-    );
+    if (this.modifierMatches(settings.modifierKey, e)) {
+      e.preventDefault();
+      const anchor = this.toContainer(e.clientX, e.clientY);
+      const factor = Math.exp(-e.deltaY * 0.01 * settings.zoomSensitivity);
+      this.setState(
+        zoomAt(this.state, factor, anchor, settings.minZoom, settings.maxZoom)
+      );
+      return;
+    }
+    if (this.state.scale > 1) {
+      e.preventDefault();
+      this.setState({
+        ...this.state,
+        tx: this.state.tx - e.deltaX,
+        ty: this.state.ty - e.deltaY
+      });
+    }
   };
 
   private onDblClick = (e: MouseEvent): void => {
