@@ -1,10 +1,20 @@
 import { ConfigStore } from "./config-store";
 import { ModifierKey } from "./types";
-import { clampPan, zoomAt, ZoomState } from "./zoom-math";
+import { clamp, clampPan, zoomAt, ZoomState } from "./zoom-math";
 
 // Breathing room (px) between the image edge and the viewport edge at the
 // pan limit when the image is larger than the viewport in that dimension.
 const EDGE_PADDING = 80;
+
+// Double-tap detection for mobile — iOS Photos-style toggle between fit and
+// zoomed-in. Kept small/loose enough to feel natural without competing with
+// pans or pinches.
+const TAP_MAX_DURATION_MS = 250;
+const TAP_MAX_MOVEMENT_PX = 10;
+const DOUBLE_TAP_MAX_GAP_MS = 300;
+const DOUBLE_TAP_MAX_DISTANCE_PX = 40;
+const DOUBLE_TAP_ZOOM_SCALE = 2.5;
+const DOUBLE_TAP_ANIM_MS = 220;
 
 interface GestureEventLike extends Event {
   scale: number;
@@ -23,8 +33,23 @@ export class ZoomController {
   private pinchStartDistance = 0;
   private pinchStartScale = 1;
   private pinchAnchor = { x: 0, y: 0 };
+  // Image-space point that sits under the pinch midpoint. Captured at
+  // pinchstart and held so the same image point stays glued to wherever the
+  // midpoint is now — giving simultaneous zoom-and-pan with two fingers.
+  private pinchImgAnchor = { x: 0, y: 0 };
 
   private gestureStartScale = 1;
+
+  private animRaf: number | null = null;
+
+  private tapStartTime = 0;
+  private tapStartX = 0;
+  private tapStartY = 0;
+  private tapCandidate = false;
+  private gestureHadMultitouch = false;
+  private lastTapTime = 0;
+  private lastTapX = 0;
+  private lastTapY = 0;
 
   constructor(
     private img: HTMLImageElement,
@@ -36,14 +61,16 @@ export class ZoomController {
   }
 
   detach(): void {
+    this.cancelAnimation();
     this.container.removeEventListener("wheel", this.onWheel);
     this.container.removeEventListener("dblclick", this.onDblClick);
     this.container.removeEventListener("mousedown", this.onMouseDown);
     window.removeEventListener("mousemove", this.onMouseMove);
     window.removeEventListener("mouseup", this.onMouseUp);
-    this.container.removeEventListener("touchstart", this.onTouchStart);
-    this.container.removeEventListener("touchmove", this.onTouchMove);
-    this.container.removeEventListener("touchend", this.onTouchEnd);
+    this.container.removeEventListener("touchstart", this.onTouchStart, true);
+    this.container.removeEventListener("touchmove", this.onTouchMove, true);
+    this.container.removeEventListener("touchend", this.onTouchEnd, true);
+    this.container.removeEventListener("touchcancel", this.onTouchEnd, true);
     this.container.removeEventListener("gesturestart", this.onGestureStart as EventListener);
     this.container.removeEventListener("gesturechange", this.onGestureChange as EventListener);
     this.container.removeEventListener("gestureend", this.onGestureEnd as EventListener);
@@ -82,15 +109,19 @@ export class ZoomController {
     this.container.addEventListener("wheel", this.onWheel, { passive: false });
     this.container.addEventListener("dblclick", this.onDblClick);
     this.container.addEventListener("mousedown", this.onMouseDown);
-    this.container.addEventListener("touchstart", this.onTouchStart, { passive: false });
-    this.container.addEventListener("touchmove", this.onTouchMove, { passive: false });
-    this.container.addEventListener("touchend", this.onTouchEnd);
+    // Capture phase so Obsidian mobile's ancestor swipe handlers can't
+    // preempt touches that originate on the image.
+    this.container.addEventListener("touchstart", this.onTouchStart, { passive: false, capture: true });
+    this.container.addEventListener("touchmove", this.onTouchMove, { passive: false, capture: true });
+    this.container.addEventListener("touchend", this.onTouchEnd, { capture: true });
+    this.container.addEventListener("touchcancel", this.onTouchEnd, { capture: true });
     this.container.addEventListener("gesturestart", this.onGestureStart as EventListener, { passive: false });
     this.container.addEventListener("gesturechange", this.onGestureChange as EventListener, { passive: false });
     this.container.addEventListener("gestureend", this.onGestureEnd as EventListener);
   }
 
   private onWheel = (e: WheelEvent): void => {
+    this.cancelAnimation();
     const settings = this.store.getSettings();
     if (this.modifierMatches(settings.modifierKey, e)) {
       e.preventDefault();
@@ -112,14 +143,14 @@ export class ZoomController {
   };
 
   private onDblClick = (e: MouseEvent): void => {
-    if (!this.store.getSettings().resetOnDoubleClick) return;
     e.preventDefault();
-    this.setState({ scale: 1, tx: 0, ty: 0 });
+    this.handleDoubleTap(e.clientX, e.clientY);
   };
 
   private onMouseDown = (e: MouseEvent): void => {
     if (this.state.scale <= 1) return;
     if (e.button !== 0) return;
+    this.cancelAnimation();
     this.panning = true;
     this.lastPanX = e.clientX;
     this.lastPanY = e.clientY;
@@ -144,17 +175,38 @@ export class ZoomController {
   };
 
   private onTouchStart = (e: TouchEvent): void => {
-    // stopPropagation on every touch so Obsidian mobile's ancestor swipe
-    // handlers (back/forward navigation, sidebar open/close) never see
-    // events that originate on the image.
     e.stopPropagation();
+    this.cancelAnimation();
+
+    if (e.touches.length === 1) {
+      // First finger of a fresh gesture — start tap tracking.
+      this.tapStartTime = performance.now();
+      this.tapStartX = e.touches[0].clientX;
+      this.tapStartY = e.touches[0].clientY;
+      this.tapCandidate = true;
+      this.gestureHadMultitouch = false;
+    } else if (e.touches.length >= 2) {
+      // Additional finger landed — no longer a tap. Also invalidates any
+      // in-progress double-tap sequence.
+      this.tapCandidate = false;
+      this.gestureHadMultitouch = true;
+      this.lastTapTime = 0;
+    }
+
     if (e.touches.length === 2) {
       e.preventDefault();
       this.pinching = true;
       this.pinchStartDistance = this.touchDistance(e.touches[0], e.touches[1]);
       this.pinchStartScale = this.state.scale;
       const mid = this.touchMidpoint(e.touches[0], e.touches[1]);
-      this.pinchAnchor = this.toContainer(mid.x, mid.y);
+      const midContainer = this.toContainer(mid.x, mid.y);
+      // Freeze the image-space point that's currently under the midpoint.
+      // During the pinch we keep this point pinned to wherever the midpoint
+      // moves, which is what gives you pan + zoom simultaneously.
+      this.pinchImgAnchor = {
+        x: (midContainer.x - this.state.tx) / this.state.scale,
+        y: (midContainer.y - this.state.ty) / this.state.scale
+      };
     } else if (e.touches.length === 1 && this.state.scale > 1) {
       e.preventDefault();
       this.panning = true;
@@ -165,16 +217,47 @@ export class ZoomController {
 
   private onTouchMove = (e: TouchEvent): void => {
     e.stopPropagation();
+
+    // Defensive: if touchstart never reached us (e.g., an ancestor handler
+    // consumed it) but we're clearly in a 1-finger drag at a zoomed scale,
+    // lazily initialize pan state so the gesture still works.
+    if (
+      !this.panning &&
+      !this.pinching &&
+      e.touches.length === 1 &&
+      this.state.scale > 1
+    ) {
+      this.panning = true;
+      this.lastPanX = e.touches[0].clientX;
+      this.lastPanY = e.touches[0].clientY;
+    }
+
+    // Movement beyond the tap-slop threshold invalidates tap intent and
+    // breaks any in-progress double-tap sequence.
+    if (this.tapCandidate && e.touches.length >= 1) {
+      const dx = e.touches[0].clientX - this.tapStartX;
+      const dy = e.touches[0].clientY - this.tapStartY;
+      if (Math.hypot(dx, dy) > TAP_MAX_MOVEMENT_PX) {
+        this.tapCandidate = false;
+        this.lastTapTime = 0;
+      }
+    }
+
     if (this.pinching && e.touches.length === 2) {
       e.preventDefault();
       const settings = this.store.getSettings();
       const dist = this.touchDistance(e.touches[0], e.touches[1]);
+      const mid = this.touchMidpoint(e.touches[0], e.touches[1]);
       const factor = dist / (this.pinchStartDistance || 1);
-      const target = this.pinchStartScale * factor;
-      const relativeFactor = target / this.state.scale;
-      this.setState(
-        zoomAt(this.state, relativeFactor, this.pinchAnchor, 1, settings.maxZoom)
-      );
+      const targetScale = clamp(this.pinchStartScale * factor, 1, settings.maxZoom);
+      const midContainer = this.toContainer(mid.x, mid.y);
+      // Position the image so pinchImgAnchor sits exactly under the current
+      // midpoint: container_pos = (tx, ty) + anchor * scale → solve for tx/ty.
+      this.setState({
+        scale: targetScale,
+        tx: midContainer.x - this.pinchImgAnchor.x * targetScale,
+        ty: midContainer.y - this.pinchImgAnchor.y * targetScale
+      });
     } else if (this.panning && e.touches.length === 1) {
       e.preventDefault();
       const dx = e.touches[0].clientX - this.lastPanX;
@@ -187,8 +270,53 @@ export class ZoomController {
 
   private onTouchEnd = (e: TouchEvent): void => {
     e.stopPropagation();
-    if (e.touches.length < 2) this.pinching = false;
-    if (e.touches.length === 0) this.panning = false;
+    if (this.pinching && e.touches.length < 2) {
+      this.pinching = false;
+      if (e.touches.length === 1 && this.state.scale > 1) {
+        // Fingers rarely lift at the exact same instant. Reset 1-finger pan
+        // tracking to the remaining finger's current position so the next
+        // touchmove doesn't compute a delta against stale midpoint coords.
+        this.panning = true;
+        this.lastPanX = e.touches[0].clientX;
+        this.lastPanY = e.touches[0].clientY;
+      } else {
+        this.panning = false;
+      }
+    }
+    if (e.touches.length === 0) {
+      this.panning = false;
+
+      // Double-tap detection: clean tap (no movement, no second finger, short
+      // duration) against a previous clean tap close in time and space.
+      const touchDuration = performance.now() - this.tapStartTime;
+      if (
+        this.tapCandidate &&
+        !this.gestureHadMultitouch &&
+        touchDuration <= TAP_MAX_DURATION_MS &&
+        e.changedTouches.length >= 1
+      ) {
+        const t = e.changedTouches[0];
+        const now = performance.now();
+        const gap = now - this.lastTapTime;
+        const distFromLast = Math.hypot(
+          t.clientX - this.lastTapX,
+          t.clientY - this.lastTapY
+        );
+        if (
+          this.lastTapTime > 0 &&
+          gap <= DOUBLE_TAP_MAX_GAP_MS &&
+          distFromLast <= DOUBLE_TAP_MAX_DISTANCE_PX
+        ) {
+          this.handleDoubleTap(t.clientX, t.clientY);
+          this.lastTapTime = 0;
+        } else {
+          this.lastTapTime = now;
+          this.lastTapX = t.clientX;
+          this.lastTapY = t.clientY;
+        }
+      }
+      this.tapCandidate = false;
+    }
   };
 
   private onGestureStart = (e: GestureEventLike): void => {
@@ -212,6 +340,58 @@ export class ZoomController {
   private onGestureEnd = (e: GestureEventLike): void => {
     e.stopPropagation();
   };
+
+  private handleDoubleTap(clientX: number, clientY: number): void {
+    if (!this.store.getSettings().resetOnDoubleClick) return;
+    this.cancelAnimation();
+    if (this.state.scale > 1) {
+      this.animateTo({ scale: 1, tx: 0, ty: 0 }, DOUBLE_TAP_ANIM_MS);
+      return;
+    }
+    const settings = this.store.getSettings();
+    const targetScale = Math.min(DOUBLE_TAP_ZOOM_SCALE, settings.maxZoom);
+    if (targetScale <= this.state.scale) return;
+    const anchor = this.toContainer(clientX, clientY);
+    const ratio = targetScale / this.state.scale;
+    this.animateTo(
+      {
+        scale: targetScale,
+        tx: anchor.x - ratio * (anchor.x - this.state.tx),
+        ty: anchor.y - ratio * (anchor.y - this.state.ty)
+      },
+      DOUBLE_TAP_ANIM_MS
+    );
+  }
+
+  private animateTo(target: ZoomState, durationMs: number): void {
+    this.cancelAnimation();
+    const start = { ...this.state };
+    const startTime = performance.now();
+    const step = (): void => {
+      const now = performance.now();
+      const t = Math.min(1, (now - startTime) / durationMs);
+      // Ease-out cubic — settles gently at the target.
+      const eased = 1 - Math.pow(1 - t, 3);
+      this.setState({
+        scale: start.scale + (target.scale - start.scale) * eased,
+        tx: start.tx + (target.tx - start.tx) * eased,
+        ty: start.ty + (target.ty - start.ty) * eased
+      });
+      if (t < 1) {
+        this.animRaf = requestAnimationFrame(step);
+      } else {
+        this.animRaf = null;
+      }
+    };
+    this.animRaf = requestAnimationFrame(step);
+  }
+
+  private cancelAnimation(): void {
+    if (this.animRaf !== null) {
+      cancelAnimationFrame(this.animRaf);
+      this.animRaf = null;
+    }
+  }
 
   private setState(next: ZoomState): void {
     const bounds = this.bounds();
