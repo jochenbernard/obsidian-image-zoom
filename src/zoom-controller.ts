@@ -32,17 +32,17 @@ export class ZoomController {
   }
 
   detach(): void {
-    this.img.removeEventListener("wheel", this.onWheel);
-    this.img.removeEventListener("dblclick", this.onDblClick);
-    this.img.removeEventListener("mousedown", this.onMouseDown);
+    this.container.removeEventListener("wheel", this.onWheel);
+    this.container.removeEventListener("dblclick", this.onDblClick);
+    this.container.removeEventListener("mousedown", this.onMouseDown);
     window.removeEventListener("mousemove", this.onMouseMove);
     window.removeEventListener("mouseup", this.onMouseUp);
-    this.img.removeEventListener("touchstart", this.onTouchStart);
-    this.img.removeEventListener("touchmove", this.onTouchMove);
-    this.img.removeEventListener("touchend", this.onTouchEnd);
-    this.img.removeEventListener("gesturestart", this.onGestureStart as EventListener);
-    this.img.removeEventListener("gesturechange", this.onGestureChange as EventListener);
-    this.img.removeEventListener("gestureend", this.onGestureEnd as EventListener);
+    this.container.removeEventListener("touchstart", this.onTouchStart);
+    this.container.removeEventListener("touchmove", this.onTouchMove);
+    this.container.removeEventListener("touchend", this.onTouchEnd);
+    this.container.removeEventListener("gesturestart", this.onGestureStart as EventListener);
+    this.container.removeEventListener("gesturechange", this.onGestureChange as EventListener);
+    this.container.removeEventListener("gestureend", this.onGestureEnd as EventListener);
     this.img.style.transform = "";
     this.img.style.transformOrigin = "";
     this.img.style.transition = "";
@@ -63,15 +63,18 @@ export class ZoomController {
   }
 
   private bind(): void {
-    this.img.addEventListener("wheel", this.onWheel, { passive: false });
-    this.img.addEventListener("dblclick", this.onDblClick);
-    this.img.addEventListener("mousedown", this.onMouseDown);
-    this.img.addEventListener("touchstart", this.onTouchStart, { passive: false });
-    this.img.addEventListener("touchmove", this.onTouchMove, { passive: false });
-    this.img.addEventListener("touchend", this.onTouchEnd);
-    this.img.addEventListener("gesturestart", this.onGestureStart as EventListener, { passive: false });
-    this.img.addEventListener("gesturechange", this.onGestureChange as EventListener, { passive: false });
-    this.img.addEventListener("gestureend", this.onGestureEnd as EventListener);
+    // Listeners target the container, not the image: the image moves during
+    // pan/zoom, so a listener on the image stops receiving events the moment
+    // the cursor drifts off the image onto the surrounding container.
+    this.container.addEventListener("wheel", this.onWheel, { passive: false });
+    this.container.addEventListener("dblclick", this.onDblClick);
+    this.container.addEventListener("mousedown", this.onMouseDown);
+    this.container.addEventListener("touchstart", this.onTouchStart, { passive: false });
+    this.container.addEventListener("touchmove", this.onTouchMove, { passive: false });
+    this.container.addEventListener("touchend", this.onTouchEnd);
+    this.container.addEventListener("gesturestart", this.onGestureStart as EventListener, { passive: false });
+    this.container.addEventListener("gesturechange", this.onGestureChange as EventListener, { passive: false });
+    this.container.addEventListener("gestureend", this.onGestureEnd as EventListener);
   }
 
   private onWheel = (e: WheelEvent): void => {
