@@ -147,6 +147,10 @@ export class ZoomController {
   };
 
   private onTouchStart = (e: TouchEvent): void => {
+    // stopPropagation on every touch so Obsidian mobile's ancestor swipe
+    // handlers (back/forward navigation, sidebar open/close) never see
+    // events that originate on the image.
+    e.stopPropagation();
     if (e.touches.length === 2) {
       e.preventDefault();
       this.pinching = true;
@@ -155,6 +159,7 @@ export class ZoomController {
       const mid = this.touchMidpoint(e.touches[0], e.touches[1]);
       this.pinchAnchor = this.toContainer(mid.x, mid.y);
     } else if (e.touches.length === 1 && this.state.scale > 1) {
+      e.preventDefault();
       this.panning = true;
       this.lastPanX = e.touches[0].clientX;
       this.lastPanY = e.touches[0].clientY;
@@ -162,6 +167,7 @@ export class ZoomController {
   };
 
   private onTouchMove = (e: TouchEvent): void => {
+    e.stopPropagation();
     if (this.pinching && e.touches.length === 2) {
       e.preventDefault();
       const settings = this.store.getSettings();
@@ -183,17 +189,20 @@ export class ZoomController {
   };
 
   private onTouchEnd = (e: TouchEvent): void => {
+    e.stopPropagation();
     if (e.touches.length < 2) this.pinching = false;
     if (e.touches.length === 0) this.panning = false;
   };
 
   private onGestureStart = (e: GestureEventLike): void => {
+    e.stopPropagation();
     e.preventDefault();
     this.gestureStartScale = this.state.scale;
     this.pinchAnchor = this.toContainer(e.clientX, e.clientY);
   };
 
   private onGestureChange = (e: GestureEventLike): void => {
+    e.stopPropagation();
     e.preventDefault();
     const settings = this.store.getSettings();
     const target = this.gestureStartScale * e.scale;
@@ -203,8 +212,8 @@ export class ZoomController {
     );
   };
 
-  private onGestureEnd = (_e: GestureEventLike): void => {
-    // state already committed via gesturechange
+  private onGestureEnd = (e: GestureEventLike): void => {
+    e.stopPropagation();
   };
 
   private setState(next: ZoomState): void {
