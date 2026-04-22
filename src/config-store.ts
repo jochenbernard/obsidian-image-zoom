@@ -19,10 +19,6 @@ export class ConfigStore {
     await this.write({ modifierKey: value });
   }
 
-  async setMinZoom(value: number): Promise<void> {
-    await this.write({ minZoom: value });
-  }
-
   async setMaxZoom(value: number): Promise<void> {
     await this.write({ maxZoom: value });
   }

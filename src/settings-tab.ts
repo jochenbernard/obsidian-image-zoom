@@ -44,19 +44,6 @@ export class ImageZoomSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Minimum zoom")
-      .setDesc("Smallest allowed scale. 1.0 = fit-to-pane.")
-      .addSlider(s =>
-        s
-          .setLimits(0.05, 1, 0.05)
-          .setValue(settings.minZoom)
-          .setDynamicTooltip()
-          .onChange(async value => {
-            await this.store.setMinZoom(value);
-          })
-      );
-
-    new Setting(containerEl)
       .setName("Maximum zoom")
       .setDesc("Largest allowed scale.")
       .addSlider(s =>

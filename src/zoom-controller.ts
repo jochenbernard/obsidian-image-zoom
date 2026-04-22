@@ -2,6 +2,10 @@ import { ConfigStore } from "./config-store";
 import { ModifierKey } from "./types";
 import { clampPan, zoomAt, ZoomState } from "./zoom-math";
 
+// Breathing room (px) between the image edge and the viewport edge at the
+// pan limit when the image is larger than the viewport in that dimension.
+const EDGE_PADDING = 80;
+
 interface GestureEventLike extends Event {
   scale: number;
   clientX: number;
@@ -49,16 +53,26 @@ export class ZoomController {
     this.img.style.cursor = "";
     this.container.style.overflow = "";
     this.container.style.touchAction = "";
+    this.container.style.display = "";
+    this.container.style.alignItems = "";
+    this.container.style.justifyContent = "";
   }
 
   private prepare(): void {
-    this.img.style.transformOrigin = "0 0";
+    this.img.style.transformOrigin = "center center";
     this.img.style.transition = "none";
     this.img.style.willChange = "transform";
     this.img.style.userSelect = "none";
     this.img.style.touchAction = "none";
     this.container.style.overflow = "hidden";
     this.container.style.touchAction = "none";
+    // Obsidian's default image view top-aligns the image in contentEl. That
+    // mismatches our pan-clamp origin (container center) and causes a visible
+    // jump on first zoom/pan. Force the container to center the image so the
+    // initial paint already sits where the clamp expects it.
+    this.container.style.display = "flex";
+    this.container.style.alignItems = "center";
+    this.container.style.justifyContent = "center";
     this.apply();
   }
 
@@ -84,7 +98,7 @@ export class ZoomController {
       const anchor = this.toContainer(e.clientX, e.clientY);
       const factor = Math.exp(-e.deltaY * 0.01 * settings.zoomSensitivity);
       this.setState(
-        zoomAt(this.state, factor, anchor, settings.minZoom, settings.maxZoom)
+        zoomAt(this.state, factor, anchor, 1, settings.maxZoom)
       );
       return;
     }
@@ -156,7 +170,7 @@ export class ZoomController {
       const target = this.pinchStartScale * factor;
       const relativeFactor = target / this.state.scale;
       this.setState(
-        zoomAt(this.state, relativeFactor, this.pinchAnchor, settings.minZoom, settings.maxZoom)
+        zoomAt(this.state, relativeFactor, this.pinchAnchor, 1, settings.maxZoom)
       );
     } else if (this.panning && e.touches.length === 1) {
       e.preventDefault();
@@ -185,7 +199,7 @@ export class ZoomController {
     const target = this.gestureStartScale * e.scale;
     const relativeFactor = target / this.state.scale;
     this.setState(
-      zoomAt(this.state, relativeFactor, this.pinchAnchor, settings.minZoom, settings.maxZoom)
+      zoomAt(this.state, relativeFactor, this.pinchAnchor, 1, settings.maxZoom)
     );
   };
 
@@ -205,18 +219,49 @@ export class ZoomController {
     this.img.style.cursor = this.state.scale > 1 ? "grab" : "";
   }
 
-  private bounds(): { imageWidth: number; imageHeight: number; containerWidth: number; containerHeight: number } {
+  private bounds(): {
+    imageWidth: number;
+    imageHeight: number;
+    containerWidth: number;
+    containerHeight: number;
+    imageCenterX: number;
+    imageCenterY: number;
+    padding: number;
+  } {
+    // Use the CSS-rendered (fit) size, not natural size. clientWidth/Height
+    // reflect layout after Obsidian's max-width/height CSS, which is exactly
+    // the "scale=1 = fit-to-viewport" reference the pan clamp needs.
+    //
+    // Obsidian's image view does not always center the image vertically
+    // (flex alignment can leave empty space at top or bottom), so we measure
+    // the image's actual visual center and subtract the currently-applied
+    // translation to recover the natural (no-transform) center in container
+    // coordinates. The pan clamp uses that to shift its allowed range.
+    const imgRect = this.img.getBoundingClientRect();
+    const contRect = this.container.getBoundingClientRect();
+    const visualCenterX = imgRect.left + imgRect.width / 2 - contRect.left;
+    const visualCenterY = imgRect.top + imgRect.height / 2 - contRect.top;
     return {
-      imageWidth: this.img.naturalWidth || this.img.width,
-      imageHeight: this.img.naturalHeight || this.img.height,
+      imageWidth: this.img.clientWidth || this.img.naturalWidth,
+      imageHeight: this.img.clientHeight || this.img.naturalHeight,
       containerWidth: this.container.clientWidth,
-      containerHeight: this.container.clientHeight
+      containerHeight: this.container.clientHeight,
+      imageCenterX: visualCenterX - this.state.tx,
+      imageCenterY: visualCenterY - this.state.ty,
+      padding: EDGE_PADDING
     };
   }
 
   private toContainer(clientX: number, clientY: number): { x: number; y: number } {
+    // Anchor is expressed as offset from the container's center so it lines
+    // up with the image's transform-origin (center center). At scale=1 with
+    // tx=ty=0 the image sits centered in the container, so zooming on the
+    // center produces no translation.
     const rect = this.container.getBoundingClientRect();
-    return { x: clientX - rect.left, y: clientY - rect.top };
+    return {
+      x: clientX - rect.left - rect.width / 2,
+      y: clientY - rect.top - rect.height / 2
+    };
   }
 
   private touchDistance(a: Touch, b: Touch): number {

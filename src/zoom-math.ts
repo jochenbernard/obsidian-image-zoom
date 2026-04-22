@@ -15,6 +15,16 @@ export interface PanClampInput {
   imageHeight: number;
   containerWidth: number;
   containerHeight: number;
+  // Natural (no-transform) center of the image in container-relative coords.
+  // When the image is dead-center, this equals (containerWidth/2, containerHeight/2).
+  imageCenterX: number;
+  imageCenterY: number;
+  // Extra breathing room past the "cover" rule. When pan is possible (image
+  // exceeds the viewport in that dimension), the image edge is allowed to
+  // stop `padding` pixels inside the viewport edge rather than flush against
+  // it. Ignored when there is no overflow in a dimension (the image stays
+  // locked to center instead of jittering by ±padding).
+  padding?: number;
 }
 
 export function clamp(value: number, min: number, max: number): number {
@@ -43,10 +53,18 @@ export function clampPan(
 ): { tx: number; ty: number } {
   const scaledW = input.imageWidth * input.scale;
   const scaledH = input.imageHeight * input.scale;
-  const overflowX = Math.max(0, (scaledW - input.containerWidth) / 2);
-  const overflowY = Math.max(0, (scaledH - input.containerHeight) / 2);
+  const padding = input.padding ?? 0;
+  const overflowX = scaledW > input.containerWidth
+    ? (scaledW - input.containerWidth) / 2 + padding
+    : 0;
+  const overflowY = scaledH > input.containerHeight
+    ? (scaledH - input.containerHeight) / 2 + padding
+    : 0;
+  // Translation that re-centers the image in the container.
+  const centerTx = input.containerWidth / 2 - input.imageCenterX;
+  const centerTy = input.containerHeight / 2 - input.imageCenterY;
   return {
-    tx: clamp(translation.tx, -overflowX, overflowX),
-    ty: clamp(translation.ty, -overflowY, overflowY)
+    tx: clamp(translation.tx, centerTx - overflowX, centerTx + overflowX),
+    ty: clamp(translation.ty, centerTy - overflowY, centerTy + overflowY)
   };
 }
