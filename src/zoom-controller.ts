@@ -50,7 +50,6 @@ export class ZoomController {
     this.img.style.transform = "";
     this.img.style.transformOrigin = "";
     this.img.style.transition = "";
-    this.img.style.cursor = "";
     this.container.style.overflow = "";
     this.container.style.touchAction = "";
     this.container.style.display = "";
@@ -124,7 +123,6 @@ export class ZoomController {
     this.panning = true;
     this.lastPanX = e.clientX;
     this.lastPanY = e.clientY;
-    this.img.style.cursor = "grabbing";
     window.addEventListener("mousemove", this.onMouseMove);
     window.addEventListener("mouseup", this.onMouseUp);
     e.preventDefault();
@@ -141,7 +139,6 @@ export class ZoomController {
 
   private onMouseUp = (): void => {
     this.panning = false;
-    this.img.style.cursor = this.state.scale > 1 ? "grab" : "";
     window.removeEventListener("mousemove", this.onMouseMove);
     window.removeEventListener("mouseup", this.onMouseUp);
   };
@@ -225,7 +222,6 @@ export class ZoomController {
 
   private apply(): void {
     this.img.style.transform = `translate(${this.state.tx}px, ${this.state.ty}px) scale(${this.state.scale})`;
-    this.img.style.cursor = this.state.scale > 1 ? "grab" : "";
   }
 
   private bounds(): {
