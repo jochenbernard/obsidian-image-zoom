@@ -19,7 +19,7 @@ export class ImageZoomSettingsTab extends PluginSettingTab {
       )
       .addDropdown(d =>
         d
-          .addOption("either", "Cmd or Ctrl")
+          .addOption("either", "Cmd or ctrl")
           .addOption("cmd", "Cmd only")
           .addOption("ctrl", "Ctrl only")
           .addOption("none", "No modifier (scroll zooms)")

@@ -73,31 +73,18 @@ export class ZoomController {
     this.container.removeEventListener("gesturestart", this.onGestureStart as EventListener);
     this.container.removeEventListener("gesturechange", this.onGestureChange as EventListener);
     this.container.removeEventListener("gestureend", this.onGestureEnd as EventListener);
-    this.img.style.transform = "";
-    this.img.style.transformOrigin = "";
-    this.img.style.transition = "";
-    this.container.style.overflow = "";
-    this.container.style.touchAction = "";
-    this.container.style.display = "";
-    this.container.style.alignItems = "";
-    this.container.style.justifyContent = "";
+    this.img.classList.remove("image-zoom-img");
+    this.container.classList.remove("image-zoom-container");
+    this.img.style.removeProperty("transform");
   }
 
   private prepare(): void {
-    this.img.style.transformOrigin = "center center";
-    this.img.style.transition = "none";
-    this.img.style.willChange = "transform";
-    this.img.style.userSelect = "none";
-    this.img.style.touchAction = "none";
-    this.container.style.overflow = "hidden";
-    this.container.style.touchAction = "none";
+    this.img.classList.add("image-zoom-img");
     // Obsidian's default image view top-aligns the image in contentEl. That
     // mismatches our pan-clamp origin (container center) and causes a visible
-    // jump on first zoom/pan. Force the container to center the image so the
+    // jump on first zoom/pan. The container class centers the image so the
     // initial paint already sits where the clamp expects it.
-    this.container.style.display = "flex";
-    this.container.style.alignItems = "center";
-    this.container.style.justifyContent = "center";
+    this.container.classList.add("image-zoom-container");
     this.apply();
   }
 
