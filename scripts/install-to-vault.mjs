@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const PLUGIN_ID = "image-zoom";
-const FILES = ["manifest.json", "main.js"];
+const FILES = ["manifest.json", "main.js", "styles.css"];
 
 const projectRoot = resolve(fileURLToPath(import.meta.url), "..", "..");
 const configFile = join(projectRoot, ".obsidian-vault-path");
