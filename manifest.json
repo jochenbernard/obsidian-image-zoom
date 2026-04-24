@@ -1,10 +1,10 @@
 {
   "id": "image-zoom",
   "name": "Image Zoom",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "minAppVersion": "1.5.0",
-  "description": "Pinch-zoom and modifier-scroll zoom for image files opened in Obsidian.",
+  "description": "Pinch-zoom and modifier-scroll zoom for image files opened in their own tab.",
   "author": "Jochen Bernard",
-  "authorUrl": "",
+  "authorUrl": "https://github.com/jochenbernard",
   "isDesktopOnly": false
 }
