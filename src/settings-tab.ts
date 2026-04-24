@@ -26,7 +26,7 @@ export class ImageZoomSettingsTab extends PluginSettingTab {
           .setValue(settings.modifierKey)
           .onChange(async value => {
             if (!isModifierKey(value)) return;
-            await this.store.setModifierKey(value);
+            await this.store.update({ modifierKey: value });
           })
       );
 
@@ -39,7 +39,7 @@ export class ImageZoomSettingsTab extends PluginSettingTab {
           .setValue(settings.zoomSensitivity)
           .setDynamicTooltip()
           .onChange(async value => {
-            await this.store.setZoomSensitivity(value);
+            await this.store.update({ zoomSensitivity: value });
           })
       );
 
@@ -52,7 +52,7 @@ export class ImageZoomSettingsTab extends PluginSettingTab {
           .setValue(settings.maxZoom)
           .setDynamicTooltip()
           .onChange(async value => {
-            await this.store.setMaxZoom(value);
+            await this.store.update({ maxZoom: value });
           })
       );
 
@@ -61,7 +61,7 @@ export class ImageZoomSettingsTab extends PluginSettingTab {
       .setDesc("Double-clicking the image returns zoom to 1x and centers it.")
       .addToggle(t =>
         t.setValue(settings.resetOnDoubleClick).onChange(async value => {
-          await this.store.setResetOnDoubleClick(value);
+          await this.store.update({ resetOnDoubleClick: value });
         })
       );
   }

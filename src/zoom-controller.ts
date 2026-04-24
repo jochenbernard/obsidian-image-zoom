@@ -46,7 +46,6 @@ export class ZoomController {
   private tapStartX = 0;
   private tapStartY = 0;
   private tapCandidate = false;
-  private gestureHadMultitouch = false;
   private lastTapTime = 0;
   private lastTapX = 0;
   private lastTapY = 0;
@@ -179,17 +178,13 @@ export class ZoomController {
     this.cancelAnimation();
 
     if (e.touches.length === 1) {
-      // First finger of a fresh gesture — start tap tracking.
       this.tapStartTime = performance.now();
       this.tapStartX = e.touches[0].clientX;
       this.tapStartY = e.touches[0].clientY;
       this.tapCandidate = true;
-      this.gestureHadMultitouch = false;
     } else if (e.touches.length >= 2) {
-      // Additional finger landed — no longer a tap. Also invalidates any
-      // in-progress double-tap sequence.
+      // Second finger invalidates tap intent and any in-progress double-tap.
       this.tapCandidate = false;
-      this.gestureHadMultitouch = true;
       this.lastTapTime = 0;
     }
 
@@ -286,12 +281,9 @@ export class ZoomController {
     if (e.touches.length === 0) {
       this.panning = false;
 
-      // Double-tap detection: clean tap (no movement, no second finger, short
-      // duration) against a previous clean tap close in time and space.
       const touchDuration = performance.now() - this.tapStartTime;
       if (
         this.tapCandidate &&
-        !this.gestureHadMultitouch &&
         touchDuration <= TAP_MAX_DURATION_MS &&
         e.changedTouches.length >= 1
       ) {
@@ -342,35 +334,32 @@ export class ZoomController {
   };
 
   private handleDoubleTap(clientX: number, clientY: number): void {
-    if (!this.store.getSettings().resetOnDoubleClick) return;
+    const settings = this.store.getSettings();
+    if (!settings.resetOnDoubleClick) return;
     this.cancelAnimation();
     if (this.state.scale > 1) {
       this.animateTo({ scale: 1, tx: 0, ty: 0 }, DOUBLE_TAP_ANIM_MS);
       return;
     }
-    const settings = this.store.getSettings();
     const targetScale = Math.min(DOUBLE_TAP_ZOOM_SCALE, settings.maxZoom);
     if (targetScale <= this.state.scale) return;
     const anchor = this.toContainer(clientX, clientY);
-    const ratio = targetScale / this.state.scale;
-    this.animateTo(
-      {
-        scale: targetScale,
-        tx: anchor.x - ratio * (anchor.x - this.state.tx),
-        ty: anchor.y - ratio * (anchor.y - this.state.ty)
-      },
-      DOUBLE_TAP_ANIM_MS
-    );
+    const target = zoomAt(this.state, targetScale / this.state.scale, anchor, 1, settings.maxZoom);
+    this.animateTo(target, DOUBLE_TAP_ANIM_MS);
   }
 
   private animateTo(target: ZoomState, durationMs: number): void {
     this.cancelAnimation();
     const start = { ...this.state };
+    if (
+      Math.abs(target.scale - start.scale) < 1e-6 &&
+      Math.abs(target.tx - start.tx) < 1e-6 &&
+      Math.abs(target.ty - start.ty) < 1e-6
+    ) return;
     const startTime = performance.now();
     const step = (): void => {
       const now = performance.now();
       const t = Math.min(1, (now - startTime) / durationMs);
-      // Ease-out cubic — settles gently at the target.
       const eased = 1 - Math.pow(1 - t, 3);
       this.setState({
         scale: start.scale + (target.scale - start.scale) * eased,
@@ -396,6 +385,11 @@ export class ZoomController {
   private setState(next: ZoomState): void {
     const bounds = this.bounds();
     const clamped = clampPan({ tx: next.tx, ty: next.ty }, { scale: next.scale, ...bounds });
+    if (
+      next.scale === this.state.scale &&
+      clamped.tx === this.state.tx &&
+      clamped.ty === this.state.ty
+    ) return;
     this.state = { scale: next.scale, tx: clamped.tx, ty: clamped.ty };
     this.apply();
   }

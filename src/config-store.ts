@@ -1,5 +1,5 @@
 import { Plugin } from "obsidian";
-import { DEFAULT_SETTINGS, ModifierKey, PluginSettings } from "./types";
+import { DEFAULT_SETTINGS, PluginSettings } from "./types";
 
 export class ConfigStore {
   private settings: PluginSettings = { ...DEFAULT_SETTINGS };
@@ -15,23 +15,7 @@ export class ConfigStore {
     return this.settings;
   }
 
-  async setModifierKey(value: ModifierKey): Promise<void> {
-    await this.write({ modifierKey: value });
-  }
-
-  async setMaxZoom(value: number): Promise<void> {
-    await this.write({ maxZoom: value });
-  }
-
-  async setZoomSensitivity(value: number): Promise<void> {
-    await this.write({ zoomSensitivity: value });
-  }
-
-  async setResetOnDoubleClick(value: boolean): Promise<void> {
-    await this.write({ resetOnDoubleClick: value });
-  }
-
-  private async write(patch: Partial<PluginSettings>): Promise<void> {
+  async update(patch: Partial<PluginSettings>): Promise<void> {
     this.settings = { ...this.settings, ...patch };
     await this.plugin.saveData(this.settings);
   }
