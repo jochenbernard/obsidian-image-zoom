@@ -73,18 +73,18 @@ export class ZoomController {
     this.container.removeEventListener("gesturestart", this.onGestureStart as EventListener);
     this.container.removeEventListener("gesturechange", this.onGestureChange as EventListener);
     this.container.removeEventListener("gestureend", this.onGestureEnd as EventListener);
-    this.img.classList.remove("image-zoom-img");
-    this.container.classList.remove("image-zoom-container");
+    this.img.classList.remove("image-tab-zoom-img");
+    this.container.classList.remove("image-tab-zoom-container");
     this.img.style.removeProperty("transform");
   }
 
   private prepare(): void {
-    this.img.classList.add("image-zoom-img");
+    this.img.classList.add("image-tab-zoom-img");
     // Obsidian's default image view top-aligns the image in contentEl. That
     // mismatches our pan-clamp origin (container center) and causes a visible
     // jump on first zoom/pan. The container class centers the image so the
     // initial paint already sits where the clamp expects it.
-    this.container.classList.add("image-zoom-container");
+    this.container.classList.add("image-tab-zoom-container");
     this.apply();
   }
 
@@ -354,17 +354,17 @@ export class ZoomController {
         ty: start.ty + (target.ty - start.ty) * eased
       });
       if (t < 1) {
-        this.animRaf = requestAnimationFrame(step);
+        this.animRaf = window.requestAnimationFrame(step);
       } else {
         this.animRaf = null;
       }
     };
-    this.animRaf = requestAnimationFrame(step);
+    this.animRaf = window.requestAnimationFrame(step);
   }
 
   private cancelAnimation(): void {
     if (this.animRaf !== null) {
-      cancelAnimationFrame(this.animRaf);
+      window.cancelAnimationFrame(this.animRaf);
       this.animRaf = null;
     }
   }

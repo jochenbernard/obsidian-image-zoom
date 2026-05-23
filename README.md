@@ -1,4 +1,4 @@
-# Image Zoom
+# Image Tab Zoom
 
 An Obsidian plugin that adds pinch-zoom and modifier-scroll zoom to image files opened in Obsidian. Works on both desktop (macOS trackpad pinch, Cmd/Ctrl + scroll) and iOS (native pinch).
 
@@ -23,13 +23,13 @@ Only affects image **files** opened directly in Obsidian (`.png`, `.jpg`, `.webp
 
 1. Open `Settings → Community plugins`.
 2. Turn off Restricted mode if it is on.
-3. Click `Browse`, search for `Image Zoom`, and install.
+3. Click `Browse`, search for `Image Tab Zoom`, and install.
 4. Enable the plugin in `Settings → Community plugins`.
 
 ### Manual
 
 1. Download `manifest.json` and `main.js` from the latest [GitHub release](https://github.com/jochenbernard/obsidian-image-zoom/releases).
-2. Copy both files into your vault's `.obsidian/plugins/image-zoom/` folder (create the folder if it does not exist).
+2. Copy both files into your vault's `.obsidian/plugins/image-tab-zoom/` folder (create the folder if it does not exist).
 3. Reload Obsidian and enable the plugin under `Settings → Community plugins`.
 
 ## Settings
