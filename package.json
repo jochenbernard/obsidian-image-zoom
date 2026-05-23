@@ -1,6 +1,6 @@
 {
-  "name": "image-zoom",
-  "version": "1.0.0",
+  "name": "image-tab-zoom",
+  "version": "1.0.1",
   "description": "Pinch-zoom and modifier-scroll zoom for image files opened in their own tab.",
   "main": "main.js",
   "type": "module",
@@ -11,7 +11,10 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "keywords": ["obsidian", "plugin"],
+  "keywords": [
+    "obsidian",
+    "plugin"
+  ],
   "author": "Jochen Bernard",
   "license": "MIT",
   "repository": {
@@ -24,11 +27,15 @@
   "homepage": "https://github.com/jochenbernard/obsidian-image-zoom#readme",
   "devDependencies": {
     "@types/node": "^18.19.0",
+    "@typescript-eslint/parser": "^8.59.4",
     "builtin-modules": "^3.3.0",
     "esbuild": "^0.25.0",
+    "eslint": "^10.4.0",
+    "eslint-plugin-obsidianmd": "^0.3.0",
     "obsidian": "^1.5.0",
     "tslib": "^2.6.2",
     "typescript": "^5.4.5",
+    "typescript-eslint": "^8.59.4",
     "vitest": "^3.0.0"
   }
 }

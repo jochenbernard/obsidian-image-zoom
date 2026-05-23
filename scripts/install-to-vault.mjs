@@ -4,7 +4,7 @@ import { resolve, join } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
-const PLUGIN_ID = "image-zoom";
+const PLUGIN_ID = "image-tab-zoom";
 const FILES = ["manifest.json", "main.js", "styles.css"];
 
 const projectRoot = resolve(fileURLToPath(import.meta.url), "..", "..");
@@ -67,4 +67,4 @@ for (const file of FILES) {
 }
 
 console.log(`\nInstalled to ${pluginDir}`);
-console.log(`Reload Obsidian (Ctrl/Cmd+P → "Reload app without saving") and enable "Image Zoom" under Settings → Community plugins.`);
+console.log(`Reload Obsidian (Ctrl/Cmd+P → "Reload app without saving") and enable "Image Tab Zoom" under Settings → Community plugins.`);

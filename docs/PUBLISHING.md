@@ -24,23 +24,15 @@ In the repo's `Settings → Actions → General → Workflow permissions`, set *
 
 Only needed once. After the plugin is accepted, subsequent versions are picked up automatically from GitHub releases.
 
-1. Publish a non-draft GitHub release (follow "Cutting a release" above).
-2. Fork and edit [`obsidianmd/obsidian-releases`](https://github.com/obsidianmd/obsidian-releases), open `community-plugins.json`, and append:
-   ```json
-   {
-     "id": "image-zoom",
-     "name": "Image Zoom",
-     "author": "Jochen Bernard",
-     "description": "Pinch-zoom and modifier-scroll zoom for image files opened in their own tab.",
-     "repo": "jochenbernard/obsidian-image-zoom"
-   }
-   ```
-   Add a comma after the previous entry's closing `}`.
-3. Open a PR titled `Add plugin: Image Zoom`. Fill in the PR template checkboxes.
-4. Wait for the validation bot to add a `Ready for review` label. Address any `Validation failed` feedback by pushing to the same PR branch.
-5. After the Obsidian team reviews and merges, the plugin appears in the in-app Community Plugins browser.
+The old PR-to-`obsidianmd/obsidian-releases` workflow is deprecated. Submissions now go through the developer dashboard at <https://community.obsidian.md/>:
 
-Reference: [Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin).
+1. Publish a non-draft GitHub release (follow "Cutting a release" above).
+2. Sign in at <https://community.obsidian.md/> and connect GitHub so the dashboard can verify repo ownership.
+3. Select `jochenbernard/obsidian-image-zoom` from the repo list and complete the dashboard steps.
+4. The automated reviewer scans the release for security and code quality and returns results within minutes. Fix any findings, cut a new release, and resubmit — the scanner re-runs per version.
+5. Approved plugins appear in the in-app Community Plugins browser within ~24h.
+
+Reference: [The future of plugins](https://obsidian.md/blog/future-of-plugins/).
 
 ## Pre-submission checklist
 

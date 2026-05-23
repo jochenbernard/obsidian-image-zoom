@@ -1,4 +1,4 @@
-.image-zoom-img {
+.image-tab-zoom-img {
   transform-origin: center center;
   transition: none;
   will-change: transform;
@@ -6,7 +6,7 @@
   touch-action: none;
 }
 
-.image-zoom-container {
+.image-tab-zoom-container {
   overflow: hidden;
   touch-action: none;
   display: flex;
