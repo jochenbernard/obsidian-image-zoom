@@ -6,10 +6,12 @@
   touch-action: none;
 }
 
+/* No flex here: on Obsidian 1.13+ the image file view renders
+   .view-content > .image-container > img, and a flex context collapses
+   the auto-sized .image-container (img max-width:100% resolves against an
+   indefinite width), leaving a black view. Core css already centers the
+   image horizontally; the transform-based zoom does not need flex. */
 .image-tab-zoom-container {
   overflow: hidden;
   touch-action: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
